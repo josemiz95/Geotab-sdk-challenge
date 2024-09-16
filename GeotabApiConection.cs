@@ -1,5 +1,6 @@
 ﻿using Geotab.Checkmate;
 using Geotab.Checkmate.ObjectModel;
+using Geotab.Checkmate.ObjectModel.Engine;
 
 namespace GeotabChallenge;
 
@@ -58,12 +59,14 @@ public class GeotabApiConection
                 .Select(x => x.Id!)
                 .ToList();
 
-            var devicesStatusIndo = await GetDevicesStatusInfo(devicesIds);
-            // TODO: StatusData -> .Data = odometer
+            var devicesStatusInfo = await GetDevicesStatusInfo(devicesIds);
+            var statusDatas = await GetStatusData(devicesIds);
 
             vehicles = devices.Select(d =>
             {
-                var deviceStatusInfo = devicesStatusIndo?.FirstOrDefault(statusInfo => statusInfo?.Device?.Id == d.Id);
+                var deviceStatusInfo = devicesStatusInfo?.FirstOrDefault(statusInfo => statusInfo?.Device?.Id == d.Id);
+                var statusData = statusDatas?.FirstOrDefault(statusInfo => statusInfo?.Device?.Id == d.Id);
+
                 var goDevice = d as GoDevice;
 
                 return new Vehicle
@@ -73,6 +76,7 @@ public class GeotabApiConection
                     Vin = goDevice?.VehicleIdentificationNumber ?? "",
                     Latitude = deviceStatusInfo?.Latitude ?? 0,
                     Longitude = deviceStatusInfo?.Longitude ?? 0,
+                    Odometer = statusData?.Data ?? 0
                 };
             }).ToList();
         }
@@ -100,5 +104,42 @@ public class GeotabApiConection
                 IsIncluded = true
             }
         });
+    }
+
+    private async Task<IEnumerable<StatusData>?> GetStatusData(List<Id> devicesIds)
+    {
+        object[] calls = devicesIds.Select(GetStatusDataCall).ToArray();
+
+        var result = await api.MultiCallAsync(calls);
+
+        var statusDataList = result.OfType<IList<StatusData>>().Select(s => s.First());
+
+        return statusDataList;
+    }
+
+    private static object[] GetStatusDataCall(Id deviceId)
+    {
+        return [ 
+            "Get", 
+            typeof(StatusData),
+            new {
+                search = new StatusDataSearch
+                {
+                    DeviceSearch = new DeviceSearch(deviceId),
+                    DiagnosticSearch = new DiagnosticSearch(KnownId.DiagnosticOdometerAdjustmentId),
+                    FromDate = DateTime.MaxValue
+                },
+                propertySelector = new PropertySelector
+                {
+                    Fields = new List<string>
+                    {
+                        nameof(StatusData.Data),
+                    },
+                    IsIncluded = true
+                }
+            },
+            typeof(IList<StatusData>)
+        ];
+
     }
 }
