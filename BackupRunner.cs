@@ -18,7 +18,20 @@ public class BackupRunner
 
         var vehiclesData = await geoTabApi.GetVehiclesDataAsync();
 
-        await Task.Delay(1000);
+        if(vehiclesData == null || vehiclesData.Count() == 0)
+        {
+            Console.WriteLine("There is no vehicle data");
+            return;
+        }
+
+        List<Task> tasks = new List<Task>();
+
+        foreach (var vehicle in vehiclesData)
+        {
+            tasks.Add(feed.FeedVehicle(vehicle));
+        }
+
+        await Task.WhenAll(tasks);
     }
 }
 

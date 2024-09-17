@@ -48,39 +48,29 @@ public class GeotabApiConection
 
     public async Task<IEnumerable<Vehicle>> GetVehiclesDataAsync() 
     {
-        IEnumerable<Vehicle> vehicles = new List<Vehicle>();
-
-        var devices = await api.CallAsync<IList<Device>>("Get", typeof(Device));
-
-        if (devices != null && devices.Count > 0)
+        try
         {
-            var devicesIds = devices
-                .Where(d => d.Id != null)
-                .Select(x => x.Id!)
-                .ToList();
+            var devices = await api.CallAsync<IList<Device>>("Get", typeof(Device));
 
-            var devicesStatusInfo = await GetDevicesStatusInfo(devicesIds);
-            var statusDatas = await GetStatusData(devicesIds);
-
-            vehicles = devices.Select(d =>
+            if (devices != null && devices.Count > 0)
             {
-                var deviceStatusInfo = devicesStatusInfo?.FirstOrDefault(statusInfo => statusInfo?.Device?.Id == d.Id);
-                var statusData = statusDatas?.FirstOrDefault(statusInfo => statusInfo?.Device?.Id == d.Id);
+                var devicesIds = devices
+                    .Where(d => d.Id != null)
+                    .Select(x => x.Id!)
+                    .ToList();
 
-                var goDevice = d as GoDevice;
+                var devicesStatusInfo = await GetDevicesStatusInfo(devicesIds);
+                var statusDatas = await GetStatusData(devicesIds);
 
-                return new Vehicle
-                {
-                    Id = d.Id?.ToString(),
-                    Name = d.Name ?? "",
-                    Vin = goDevice?.VehicleIdentificationNumber ?? "",
-                    Latitude = deviceStatusInfo?.Latitude ?? 0,
-                    Longitude = deviceStatusInfo?.Longitude ?? 0,
-                    Odometer = statusData?.Data ?? 0
-                };
-            }).ToList();
+                return MapInformation(devices, devicesStatusInfo, statusDatas);
+            }
         }
-        return vehicles;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error happend while getting information, {ex}");
+        }
+
+        return new List<Vehicle>();
     }
 
     private async Task<IEnumerable<DeviceStatusInfo>?> GetDevicesStatusInfo(List<Id> devicesIds)
@@ -141,5 +131,28 @@ public class GeotabApiConection
             typeof(IList<StatusData>)
         ];
 
+    }
+
+    private IEnumerable<Vehicle> MapInformation(
+        IEnumerable<Device> devices, 
+        IEnumerable<DeviceStatusInfo>? devicesStatusInfo, 
+        IEnumerable<StatusData>? statusDatas)
+    {
+        return devices.Select(d =>
+        {
+            var deviceStatusInfo = devicesStatusInfo?.FirstOrDefault(statusInfo => statusInfo?.Device?.Id == d.Id);
+            var statusData = statusDatas?.FirstOrDefault(statusInfo => statusInfo?.Device?.Id == d.Id);
+
+            var goDevice = d as GoDevice;
+
+            return new Vehicle
+            {
+                Id = d.Id?.ToString(),
+                Vin = goDevice?.VehicleIdentificationNumber ?? "",
+                Latitude = deviceStatusInfo?.Latitude ?? 0,
+                Longitude = deviceStatusInfo?.Longitude ?? 0,
+                Odometer = statusData?.Data ?? 0
+            };
+        }).ToList();
     }
 }
