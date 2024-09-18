@@ -60,7 +60,10 @@ await Task.Run(async () =>
     {
         try
         {
-            await backUp.Run(cancellationToken);
+            Console.WriteLine("Running backup");
+            await backUp.Run();
+            Console.WriteLine($"Task complete the back up will be run in {interval}ms");
+            Console.WriteLine();
             await Task.Delay(interval, cancellationToken);
         }
         catch (Exception ex)

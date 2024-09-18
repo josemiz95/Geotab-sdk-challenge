@@ -11,27 +11,20 @@ public class FeedToCSV : IFeed
 
     public async Task FeedVehicle(Vehicle vehicle)
     {
-        try
+        Console.WriteLine($"Writing information for vehicle {vehicle.Id}, {vehicle.Name}");
+
+        if (!Directory.Exists(path))
+            Directory.CreateDirectory(path);
+
+        var csvPath = Path.Combine(path, $"{vehicle.Id}.csv");
+        bool fileExists = File.Exists(csvPath);
+
+        using (var streamWriter = new StreamWriter(csvPath, true))
         {
-            if (!Directory.Exists(path))
-                Directory.CreateDirectory(path);
+            if (!fileExists)
+                await streamWriter.WriteLineAsync("Id,Timestamp,Vin,Latitude,Longitude,Odometer");
 
-            var csvPath = Path.Combine(path, $"{vehicle.Id}.csv");
-            bool fileExists = File.Exists(csvPath);
-
-            using (var streamWriter = new StreamWriter(csvPath, true))
-            {
-                if (!fileExists)
-                    await streamWriter.WriteLineAsync("Id,Timestamp,Vin,Latitude,Longitude,Odometer");
-
-                await streamWriter.WriteLineAsync(GetCsvLine(vehicle));
-            }
-
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error while feeding information for vehicle {vehicle.Id}, {ex.Message}");
-            return;
+            await streamWriter.WriteLineAsync(GetCsvLine(vehicle));
         }
     }
 
